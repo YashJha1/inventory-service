@@ -1,0 +1,5 @@
+com/eci/inventoryservice/InventoryServiceApplication.class
+com/eci/inventoryservice/service/InventoryService.class
+com/eci/inventoryservice/controller/InventoryController.class
+com/eci/inventoryservice/model/Inventory.class
+com/eci/inventoryservice/repository/InventoryRepository.class

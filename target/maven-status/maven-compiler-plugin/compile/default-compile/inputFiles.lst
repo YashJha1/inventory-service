@@ -1,0 +1,5 @@
+/home/yash/Microservices/inventory-service/src/main/java/com/eci/inventoryservice/InventoryServiceApplication.java
+/home/yash/Microservices/inventory-service/src/main/java/com/eci/inventoryservice/controller/InventoryController.java
+/home/yash/Microservices/inventory-service/src/main/java/com/eci/inventoryservice/model/Inventory.java
+/home/yash/Microservices/inventory-service/src/main/java/com/eci/inventoryservice/repository/InventoryRepository.java
+/home/yash/Microservices/inventory-service/src/main/java/com/eci/inventoryservice/service/InventoryService.java

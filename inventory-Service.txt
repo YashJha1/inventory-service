@@ -1,0 +1,1018 @@
+**Inventory Service**
+
+
+Create Inventory-Service repo on GitHub and clone it locally.
+
+Inside Inventory-Service folder, create src folder, README.md, .gitignore file
+
+Make sure you create a separate repo "Infra" on GitHub and clone it locally, as it will have docker, k8, Prometheus, Grafana for all microservices
+
+
+
+Once created, need to initialize (Scaffold) inventory service locally with "Hello World"
+
+I have selected Java Springboot as tech stack for Microservices.
+
+Install Java jdk 17+, Maven
+
+Once installed, check their versions, java --version, mvn -version
+
+
+
+Create a **Spring boot Project**, **https://start.spring.io**
+
+
+
+Project: Maven
+
+Language: Java
+
+Spring Boot: 3.x
+
+Group: com.eci
+
+Artifact: inventory-service
+
+Package: com.eci.inventoryservice
+
+Java: 17
+
+Dependencies: Spring Web, Spring Data JPA, PostgreSQL Driver, Spring Boot DevTools, Spring Boot Actuator (for metrics)
+
+
+
+Download zip by clicking on **Generate**, once downloaded copy and extract that zip inside the inventory-service folder.
+
+cp -r /mnt/c/User/yashj/Downloads/inventory-service.zip ~/Microservices/Inventory-service/.
+
+
+
+Folder should look like,
+
+Inventory-service/
+
+├── src/
+
+│   └── main/
+
+│       ├── java/com/eci/inventoryservice/
+
+│       │   └── InventoryServiceApplication.java
+
+│       └── resources/
+
+│           ├── application.properties
+
+│           └── static/
+
+├── pom.xml
+
+
+
+run **mvn clean package -DskipTests**  command.
+
+Maven compiles your Java files
+Packages them into a runnable .jar
+Creates the target/ folder automatically
+
+
+
+
+Create **model, service, controller, repository** folders inside /src/main/java/com/eci/inventoryservice
+
+cd ~/Microservices/inventory-service
+
+mkdir -p src/main/java/com/eci/inventoryservice/model src/main/java/com/eci/inventoryservice/repository src/main/java/com/eci/inventoryservice/service src/main/java/com/eci/inventoryservice/controller
+
+
+
+Inside src/main/java/com/eci/inventoryservice/model, create **Inventory.java** file,
+
+
+package com.eci.inventoryservice.model;
+
+import jakarta.persistence.*;
+
+@Entity
+@Table(name = "inventory")
+public class Inventory {
+
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @Column(name = "inventory_id")
+    private Long inventoryId;
+
+    @Column(name = "product_id", nullable = false)
+    private Long productId;
+
+    @Column(nullable = false)
+    private String warehouse;
+
+    @Column(name = "on_hand")
+    private Integer onHand;
+
+    @Column(name = "reserved")
+    private Integer reserved;
+
+    @Column(name = "updated_at")
+    private String updatedAt;
+
+    public Inventory() {}
+
+    // Getters and Setters
+    public Long getInventoryId() { return inventoryId; }
+    public void setInventoryId(Long inventoryId) { this.inventoryId = inventoryId; }
+
+    public Long getProductId() { return productId; }
+    public void setProductId(Long productId) { this.productId = productId; }
+
+    public String getWarehouse() { return warehouse; }
+    public void setWarehouse(String warehouse) { this.warehouse = warehouse; }
+
+    public Integer getOnHand() { return onHand; }
+    public void setOnHand(Integer onHand) { this.onHand = onHand; }
+
+    public Integer getReserved() { return reserved; }
+    public void setReserved(Integer reserved) { this.reserved = reserved; }
+
+    public String getUpdatedAt() { return updatedAt; }
+    public void setUpdatedAt(String updatedAt) { this.updatedAt = updatedAt; }
+}
+
+
+
+
+Inside src/main/java/com/eci/inventoryservice/repository/ create **InventoryRepository.java** file,
+
+package com.eci.inventoryservice.repository;
+
+import com.eci.inventoryservice.model.Inventory;
+
+import org.springframework.data.jpa.repository.JpaRepository;
+
+import java.util.List;
+
+
+
+public interface InventoryRepository extends JpaRepository<Inventory, Long> {
+
+	List<Inventory> findByProductId(Long productId);
+
+        List<Inventory> findByWarehouse(String warehouse);
+
+}
+
+
+This is the other repository.java file which GPT provided
+
+package com.eci.inventoryservice.repository;
+
+import com.eci.inventoryservice.model.Inventory;
+import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.stereotype.Repository;
+
+@Repository
+public interface InventoryRepository extends JpaRepository<Inventory, Long> {
+}
+
+
+
+
+
+Inside src/main/java/com/eci/inventoryservice/service, create **InventoryService.java** file,
+
+
+package com.eci.inventoryservice.service;
+
+
+import com.eci.inventoryservice.model.Inventory;
+import com.eci.inventoryservice.repository.InventoryRepository;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+import java.util.List;
+import java.util.Optional;
+
+@Service
+public class InventoryService {
+
+   private final InventoryRepository repo;
+
+   public InventoryService(InventoryRepository repo) {
+       this.repo = repo;
+
+   }
+
+   public List<Inventory> getAll() { return repo.findAll(); }
+
+   public Optional<Inventory> getById(Long id) { return repo.findById(id); }
+
+   public Inventory create(Inventory inv) { return repo.save(inv); }
+
+
+
+   public Inventory update(Long id, Inventory inv) {
+
+       return repo.findById(id).map(existing -> {
+
+           existing.setOnHand(inv.getOnHand());
+
+           existing.setReserved(inv.getReserved());
+
+           existing.setWarehouse(inv.getWarehouse());
+
+           existing.setProductId(inv.getProductId());
+
+           existing.setUpdatedAt(inv.getUpdatedAt());
+
+           return repo.save(existing);
+
+       }).orElse(null);
+
+   }
+
+
+
+   public void delete(Long id) { repo.deleteById(id); }
+
+
+
+   // Reserve quantity atomically at inventory record level
+
+   @Transactional
+
+   public boolean reserve(Long inventoryId, int qty) {
+
+       Inventory inv = repo.findById(inventoryId).orElse(null);
+
+       if (inv == null) return false;
+
+       int available = inv.getOnHand() - inv.getReserved();
+
+       if (available >= qty) {
+
+           inv.setReserved(inv.getReserved() + qty);
+
+           repo.save(inv);
+
+           return true;
+
+       } else {
+
+           return false;
+
+       }
+
+   }
+
+
+
+   @Transactional
+
+   public boolean release(Long inventoryId, int qty) {
+
+       Inventory inv = repo.findById(inventoryId).orElse(null);
+
+       if (inv == null) return false;
+
+       int newReserved = Math.max(0, inv.getReserved() - qty);
+
+       inv.setReserved(newReserved);
+
+       repo.save(inv);
+
+       return true;
+
+   }
+
+}
+
+
+
+This is the other Service.java which GPT Provided,
+
+package com.eci.inventoryservice.service;
+
+import com.eci.inventoryservice.model.Inventory;
+import com.eci.inventoryservice.repository.InventoryRepository;
+import org.springframework.stereotype.Service;
+import java.util.List;
+
+@Service
+public class InventoryService {
+
+    private final InventoryRepository repository;
+
+    public InventoryService(InventoryRepository repository) {
+        this.repository = repository;
+    }
+
+    public List<Inventory> getAllInventory() {
+        return repository.findAll();
+    }
+
+    public Inventory addInventory(Inventory inventory) {
+        return repository.save(inventory);
+    }
+}
+
+
+
+
+
+Inside src/main/java/com/eci/inventoryservice/controller, create **InventoryController.java** file,
+
+package com.eci.inventoryservice.controller;
+
+import com.eci.inventoryservice.model.Inventory;
+import com.eci.inventoryservice.service.InventoryService;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.\*;
+import java.util.List;
+
+@RestController
+@RequestMapping("/v1/inventory")
+
+public class InventoryController {
+
+   private final InventoryService service;
+
+   public InventoryController(InventoryService service) { this.service = service; }
+
+
+
+   @GetMapping
+
+   public List<Inventory> getAll() { return service.getAll(); }
+
+
+
+   @GetMapping("/{id}")
+
+   public ResponseEntity<Inventory> getById(@PathVariable Long id) {
+
+       return service.getById(id).map(ResponseEntity::ok).orElse(ResponseEntity.notFound().build());
+
+   }
+
+
+
+   @PostMapping
+
+   public Inventory create(@RequestBody Inventory inv) { return service.create(inv); }
+
+
+
+   @PutMapping("/{id}")
+
+   public ResponseEntity<Inventory> update(@PathVariable Long id, @RequestBody Inventory inv) {
+
+       Inventory updated = service.update(id, inv);
+
+       return updated != null ? ResponseEntity.ok(updated) : ResponseEntity.notFound().build();
+
+   }
+
+
+
+   @DeleteMapping("/{id}")
+
+   public ResponseEntity<Void> delete(@PathVariable Long id) {
+
+       service.delete(id);
+
+       return ResponseEntity.noContent().build();
+
+   }
+
+
+
+   // Reserve by inventory id: POST /v1/inventory/{id}/reserve?qty=2
+
+   @PostMapping("/{id}/reserve")
+
+   public ResponseEntity<String> reserve(@PathVariable Long id, @RequestParam int qty) {
+
+       boolean ok = service.reserve(id, qty);
+
+       return ok ? ResponseEntity.ok("reserved") : ResponseEntity.status(409).body("insufficient");
+
+   }
+
+
+
+   // Release
+
+   @PostMapping("/{id}/release")
+
+   public ResponseEntity<String> release(@PathVariable Long id, @RequestParam int qty) {
+
+       boolean ok = service.release(id, qty);
+
+       return ok ? ResponseEntity.ok("released") : ResponseEntity.status(404).body("not\_found");
+
+   }
+
+}
+
+
+
+This is other controller.java, which GPT provided,
+
+package com.eci.inventoryservice.controller;
+
+import com.eci.inventoryservice.model.Inventory;
+import com.eci.inventoryservice.service.InventoryService;
+import org.springframework.web.bind.annotation.*;
+
+import java.util.List;
+
+@RestController
+@RequestMapping("/v1/inventory")
+public class InventoryController {
+
+    private final InventoryService service;
+
+    public InventoryController(InventoryService service) {
+        this.service = service;
+    }
+
+    @GetMapping
+    public List<Inventory> getAllInventory() {
+        return service.getAllInventory();
+    }
+
+    @PostMapping
+    public Inventory addInventory(@RequestBody Inventory inventory) {
+        return service.addInventory(inventory);
+    }
+}
+
+
+
+
+
+
+============================================================================================================
+
+**Optional:**
+
+Create a sample **HelloWorldController.java** inside /src/main/java/com/eci/inventoryservice
+
+
+
+package com.eci.inventoryservice;
+
+import org.springframework.web.bind.annotation.GetMapping;
+
+import org.springframework.web.bind.annotation.RestController;
+
+@RestController
+public class HelloController {
+   @GetMapping("/v1/hello")
+   public String hello() {
+       return "Hello from Inventory Service!";
+   }
+}
+
+
+
+==================================================================================================================================
+
+**Optional:**
+
+
+
+modify **InventoryServiceApplication.java** file,
+
+package com.eci.inventoryservice;
+
+import org.springframework.boot.SpringApplication;
+import org.springframework.boot.autoconfigure.SpringBootApplication;
+
+@SpringBootApplication
+public class InventoryServiceApplication {
+   public static void main(String\[] args) {
+       SpringApplication.run(InventoryServiceApplication.class, args);
+   }
+}
+
+
+
+===========================================================================================================================================
+
+
+
+Modify **application.properties** file, **src/main/resources/application.properties**
+
+
+
+\# for local testing (change to container host when running inside Docker)
+
+spring.datasource.url=jdbc:postgresql://localhost:5433/inventorydb
+spring.datasource.username=yash
+spring.datasource.password=yash123
+spring.datasource.driver-class-name=org.postgresql.Driver
+
+spring.jpa.hibernate.ddl-auto=update
+spring.jpa.show-sql=true
+
+\# actuator (for prometheus)
+management.endpoints.web.exposure.include=health,info,prometheus
+management.endpoint.prometheus.enabled=true
+server.port=8081
+
+
+
+**Note: In Docker Compose, we'll pass environment variables so the service will connect to inventory-db:5432. Locally, use 5433 if you set host mapping to avoid conflicts.**
+
+
+
+Create Docker Image by writing Dockerfile inside project folder (Inventory-service)
+
+FROM openjdk:17-jdk-slim
+WORKDIR /app
+COPY target/inventory-service-0.0.1-SNAPSHOT.jar app.jar
+EXPOSE 8081
+ENTRYPOINT ["java","-jar","/app/app.jar"]
+
+
+
+**choose port 8081 for Inventory to avoid clashes with catalog-service (8080).**
+
+---------------------------------------------------------------------------------------------
+
+Update **Docker-compose.yml** file inside the **Infra** repo folder.
+
+update services,
+
+version: "3.8"
+services:
+  # ---------- Catalog ----------
+  catalog-db:
+    image: postgres:15
+    container_name: catalog-db
+    restart: always
+    environment:
+      POSTGRES_DB: catalogdb
+      POSTGRES_USER: yash
+      POSTGRES_PASSWORD: yash123
+    ports:
+      - "5434:5432"
+    volumes:
+      - catalog_data:/var/lib/postgresql/data
+      - ./init/catalog:/docker-entrypoint-initdb.d
+
+  catalog-service:
+    build:
+      context: ../catalog-service
+      dockerfile: Dockerfile
+    container_name: catalog-service
+    depends_on:
+      - catalog-db
+    ports:
+      - "8080:8080"
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://catalog-db:5432/catalogdb
+      SPRING_DATASOURCE_USERNAME: yash
+      SPRING_DATASOURCE_PASSWORD: yash123
+      SPRING_JPA_HIBERNATE_DDL_AUTO: update
+      SERVER_PORT: 8080
+
+  # ---------- Inventory ----------
+  inventory-db:
+    image: postgres:15
+    container_name: inventory-db
+    restart: always
+    environment:
+      POSTGRES_DB: inventorydb
+      POSTGRES_USER: yash
+      POSTGRES_PASSWORD: yash123
+    ports:
+      - "5433:5432"
+    volumes:
+      - inventory_data:/var/lib/postgresql/data
+      - ./init/inventory:/docker-entrypoint-initdb.d
+
+  inventory-service:
+    build:
+      context: ../inventory-service
+      dockerfile: Dockerfile
+    container_name: inventory-service
+    depends_on:
+      - inventory-db
+    ports:
+      - "8081:8081"
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://inventory-db:5432/inventorydb
+      SPRING_DATASOURCE_USERNAME: yash
+      SPRING_DATASOURCE_PASSWORD: yash123
+      SPRING_JPA_HIBERNATE_DDL_AUTO: update
+      SERVER_PORT: 8081
+
+volumes:
+  catalog_data:
+  inventory_data:
+
+
+
+
+
+**if ./init is already mounted for catalog DB, we mounted ./init/inventory specifically to inventory-db so no file collisions.**
+
+
+
+
+**Build JAR, Docker image, and start the stack:**
+
+cd ~/Microservices/inventory-service
+mvn clean package -DskipTests
+docker build -t inventory-service:1.0 .
+
+
+
+cd ~/Microservices/infra
+
+docker compose down -v    # removes volumes so init scripts run fresh
+docker compose up -d
+
+docker ps - see inventory-db and inventory-service listed
+
+
+
+
+**Error:** Error response from daemon: failed to set up container networking: driver failed programming external connectivity on endpoint catalog-db (f86199ac10c906e6411b02f40d417ef64c189600d4ae048f13abe325fb71f5b0): failed to bind host port for 0.0.0.0:5432:172.20.0.3:5432/tcp: address already in use
+
+**Action Taken:** sudo netstat -tulnp | grep 5432
+
+Output will be - tcp   0  0 127.0.0.1:5432  ...  postgres
+
+That confirms something already occupies it.
+
+
+
+Stop old PostgreSQL containers,
+
+docker ps
+
+docker stop catalog-db inventory-db
+
+docker rm catalog-db inventory-db
+
+
+
+and re run - docker compose up -d, if still same error, then change host port of catalog DB, by modifying **docker-compose.yml** file.
+
+
+
+| Container    | Internal Port | Host Port |
+
+| ------------ | ------------- | --------- |
+
+| catalog-db   | 5432          | 5434      |
+
+| inventory-db | 5432          | 5433      |
+
+
+
+
+
+now re run again **docker compose up -d**
+
+
+
+**Note**: in container, ports will be **<Hostport>:<ContainerPort>**
+
+
+
+
+
+
+
+**white label Error when accessing** http://localhost:8081/v1/inventory, 
+
+
+
+Spring Boot shows the Whitelabel Error Page when:
+
+The application runs successfully (no startup failure), but
+The specific endpoint you hit (/v1/inventory) either:
+isn’t mapped properly,
+threw an exception internally (e.g., database issue), or
+returned null without an error handler.
+
+
+
+
+
+**Actions:**
+
+Run this command to list all endpoints Spring Boot registered:
+
+**docker logs inventory-service | grep "Mapped"**
+
+
+
+If you don’t see output, your controller class isn’t being scanned — meaning it’s in the wrong package.
+
+
+
+
+
+make sure your folder structure should be,
+
+
+
+src/main/java/com/eci/inventoryservice/
+
+├── InventoryServiceApplication.java
+
+├── controller/
+
+│   └── InventoryController.java
+
+├── service/
+
+│   └── InventoryService.java
+
+├── repository/
+
+│   └── InventoryRepository.java
+
+└── model/
+
+    └── Inventory.java
+
+
+
+
+
+
+
+and the main class (InventoryServiceApplication.java) should have,
+
+
+
+package com.eci.inventoryservice;
+
+
+
+import org.springframework.boot.SpringApplication;
+
+import org.springframework.boot.autoconfigure.SpringBootApplication;
+
+
+
+@SpringBootApplication
+
+public class InventoryServiceApplication {
+
+&nbsp;   public static void main(String\[] args) {
+
+&nbsp;       SpringApplication.run(InventoryServiceApplication.class, args);
+
+&nbsp;   }
+
+}
+
+
+
+
+
+**@SpringBootApplication** scans its own package and all subpackages.
+
+So if your controllers are outside com.eci.inventoryservice, they won’t be detected.
+
+
+
+re-run **docker compose down -v**
+
+**docker compose up -d**
+
+
+
+**Verify DB table and data,**
+
+docker exec -it inventory-db psql -U yash -d inventorydb
+
+\\dt
+
+SELECT COUNT(\*) FROM inventory;
+
+
+
+
+
+**Still white label page error,**
+
+Delete src/ and pom.xml from the project folder and regenerate things from spring initializer
+
+
+
+
+
+
+
+run **mvn clean install**, **mvn spring-boot:run**  command inside the project root folder(Inventory-service).
+
+
+
+if you test API - http://localhost:8080/v1/hello, and you get whitelabel Error page, then make sure you created **HelloWorldController.java** file, rebuild and run again mvn clean install, mvn spring-boot:run
+
+
+
+
+
+
+
+
+
+
+
+Now go inside **Infra** repo folder,
+
+add inventory-service inside the docker-compose.yml file,
+
+
+
+version: "3.8"
+
+
+
+services:
+
+&nbsp; # existing catalog-db, catalog-service ...
+
+&nbsp; catalog-db: ...
+
+&nbsp; catalog-service: ...
+
+
+
+&nbsp; # Inventory DB
+
+&nbsp; inventory-db:
+
+&nbsp;   image: postgres:15
+
+&nbsp;   container\_name: inventory-db
+
+&nbsp;   restart: always
+
+&nbsp;   environment:
+
+&nbsp;     POSTGRES\_DB: inventorydb
+
+&nbsp;     POSTGRES\_USER: yash
+
+&nbsp;     POSTGRES\_PASSWORD: yash123
+
+&nbsp;   ports:
+
+&nbsp;     - "5433:5432"      # maps host 5433 -> container 5432 to avoid conflicts
+
+&nbsp;   volumes:
+
+&nbsp;     - inventory\_data:/var/lib/postgresql/data
+
+&nbsp;     - ./init-inventory:/docker-entrypoint-initdb.d  # if you add inventory init files there
+
+
+
+&nbsp; inventory-service:
+
+&nbsp;   build:
+
+&nbsp;     context: ../inventory-service
+
+&nbsp;     dockerfile: Dockerfile
+
+&nbsp;   container\_name: inventory-service
+
+&nbsp;   depends\_on:
+
+&nbsp;     - inventory-db
+
+&nbsp;   ports:
+
+&nbsp;     - "8081:8081"
+
+&nbsp;   environment:
+
+&nbsp;     SPRING\_DATASOURCE\_URL: jdbc:postgresql://inventory-db:5432/inventorydb
+
+&nbsp;     SPRING\_DATASOURCE\_USERNAME: yash
+
+&nbsp;     SPRING\_DATASOURCE\_PASSWORD: yash123
+
+&nbsp;     SPRING\_JPA\_HIBERNATE\_DDL\_AUTO: update
+
+&nbsp;     SERVER\_PORT: 8081
+
+
+
+volumes:
+
+&nbsp; catalog\_data:
+
+&nbsp; inventory\_data:
+
+
+
+
+
+
+
+mounted ./init earlier for products. If you put eci\_inventory.csv and init\_inventory.sql in the same infra/init/ folder, the postgres init will run for whichever DB container is created fresh. To avoid confusion, you can organize infra/init/catalog/ and infra/init/inventory/ and mount them separately (e.g. - ./init/inventory:/docker-entrypoint-initdb.d for inventory-db). That’s cleaner.
+
+
+
+
+
+**Automate CSV import for inventory DB**
+
+Create folder infra/init/inventory/
+
+
+
+Put eci_inventory.csv there.
+
+
+
+Create init_inventory.sql that creates inventory table (if not exists) and COPY from /docker-entrypoint-initdb.d/eci\_inventory.csv (server path).
+
+-- init_inventory.sql
+CREATE TABLE IF NOT EXISTS inventory (
+ inventory_id INTEGER PRIMARY KEY,
+ product_id INTEGER NOT NULL,
+ warehouse VARCHAR(100) NOT NULL,
+ on_hand INTEGER DEFAULT 0,
+ reserved INTEGER DEFAULT 0,
+ updated_at TIMESTAMP
+);
+
+
+-- Load CSV (server-side COPY so it runs during docker init)
+COPY inventory(inventory_id, product_id, warehouse, on_hand, reserved, updated_at)
+FROM '/docker-entrypoint-initdb.d/eci_inventory.csv'
+DELIMITER ',' CSV HEADER;
+
+
+
+This is other init_inventory.sql,
+
+-- Create inventory table if not exists
+CREATE TABLE IF NOT EXISTS inventory (
+    inventory_id INTEGER PRIMARY KEY,
+    product_id INTEGER NOT NULL,
+    warehouse VARCHAR(100) NOT NULL,
+    quantity INTEGER NOT NULL
+);
+
+-- Load initial data from CSV
+COPY inventory(inventory_id, product_id, warehouse, quantity)
+FROM '/docker-entrypoint-initdb.d/eci_inventory.csv'
+DELIMITER ',' CSV HEADER;	
+
+
+
+In docker-compose, mount it:
+
+   volumes:
+     - inventory_data:/var/lib/postgresql/data
+     - ./init/inventory:/docker-entrypoint-initdb.d
+
+
+
+
+
+Recreate containers:
+
+**docker compose down -v**
+
+**docker compose up -d** or docker compose up -d --build
+
+
+
+docker exec -it inventory-db psql -U yash -d inventorydb
+\dt
+SELECT COUNT(*) FROM inventory;
+\q
+
+
+
+
+
+
+| Problem                             | Root Cause                      | Fix                                        |
+| ----------------------------------- | ------------------------------- | ------------------------------------------ |
+| `Whitelabel Error Page (404)`       | Controller not detected         | Align all package names with main class    |
+| No “Mapped” logs                    | Spring couldn’t find controller | Add `scanBasePackages` or fix package path |  -- @SpringBootApplication(scanBasePackages = "com.eci.inventoryservice") in the InventoryServiceApplication.java file
+| Works for catalog but not inventory | Different package hierarchy     | Mirror catalog’s working structure         |
+
+
+
+
+
+
+
+
