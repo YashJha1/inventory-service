@@ -1,0 +1,54 @@
+package com.eci.inventoryservice.service;
+
+import com.eci.inventoryservice.model.Inventory;
+import com.eci.inventoryservice.repository.InventoryRepository;
+import org.springframework.stereotype.Service;
+import java.util.List;
+import jakarta.transaction.Transactional;
+import org.springframework.beans.factory.annotation.Autowired;
+import java.util.Optional;
+
+
+@Service
+public class InventoryService {
+
+    private final InventoryRepository repository;
+
+    public InventoryService(InventoryRepository repository) {
+        this.repository = repository;
+    }
+
+    public List<Inventory> getAllInventory() {
+        return repository.findAll();
+    }
+
+    public Inventory addInventory(Inventory inventory) {
+        return repository.save(inventory);
+    }
+
+    @Transactional
+    public String reserveStock(Long productId, String warehouse, Integer quantity) {
+    	Optional<Inventory> optInv = inventoryRepository.findByProductIdAndWarehouse(productId, warehouse);
+
+    	if (optInv.isEmpty()) {
+        	return "Inventory record not found for Product ID: " + productId + " at Warehouse: " + warehouse;
+    	}
+
+    	Inventory inventory = optInv.get();
+    	int available = inventory.getOnHand() - inventory.getReserved();
+
+    	if (available < quantity) {
+        	return "Insufficient stock for Product ID: " + productId;
+    	}
+
+    // Reserve stock
+    	inventory.setReserved(inventory.getReserved() + quantity);
+    	inventory.setUpdatedAt(LocalDateTime.now());
+    	inventoryRepository.save(inventory);
+
+    // TODO: Insert into inventory_movements (we’ll do this in the next step)
+    	return "Stock reserved successfully for Product ID: " + productId;
+    }
+
+}
+

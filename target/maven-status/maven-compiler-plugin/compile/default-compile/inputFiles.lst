@@ -1,5 +1,8 @@
-/home/yash/Microservices/inventory-service/src/main/java/com/eci/inventoryservice/InventoryServiceApplication.java
-/home/yash/Microservices/inventory-service/src/main/java/com/eci/inventoryservice/controller/InventoryController.java
-/home/yash/Microservices/inventory-service/src/main/java/com/eci/inventoryservice/model/Inventory.java
-/home/yash/Microservices/inventory-service/src/main/java/com/eci/inventoryservice/repository/InventoryRepository.java
-/home/yash/Microservices/inventory-service/src/main/java/com/eci/inventoryservice/service/InventoryService.java
+/home/yash/ECI-Microservices/inventory-service/src/main/java/com/eci/inventoryservice/InventoryServiceApplication.java
+/home/yash/ECI-Microservices/inventory-service/src/main/java/com/eci/inventoryservice/controller/InventoryController.java
+/home/yash/ECI-Microservices/inventory-service/src/main/java/com/eci/inventoryservice/dto/ReserveRequest.java
+/home/yash/ECI-Microservices/inventory-service/src/main/java/com/eci/inventoryservice/model/Inventory.java
+/home/yash/ECI-Microservices/inventory-service/src/main/java/com/eci/inventoryservice/model/InventoryMovement.java
+/home/yash/ECI-Microservices/inventory-service/src/main/java/com/eci/inventoryservice/repository/InventoryMovementRepository.java
+/home/yash/ECI-Microservices/inventory-service/src/main/java/com/eci/inventoryservice/repository/InventoryRepository.java
+/home/yash/ECI-Microservices/inventory-service/src/main/java/com/eci/inventoryservice/service/InventoryService.java

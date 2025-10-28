@@ -1,6 +1,7 @@
 package com.eci.inventoryservice.model;
 
 import jakarta.persistence.*;
+import java.time.LocalDateTime;
 
 @Entity
 @Table(name = "inventory")
@@ -24,7 +25,7 @@ public class Inventory {
     private Integer reserved;
 
     @Column(name = "updated_at")
-    private String updatedAt;
+    private LocalDateTime updatedAt;
 
     public Inventory() {}
 
@@ -44,7 +45,7 @@ public class Inventory {
     public Integer getReserved() { return reserved; }
     public void setReserved(Integer reserved) { this.reserved = reserved; }
 
-    public String getUpdatedAt() { return updatedAt; }
-    public void setUpdatedAt(String updatedAt) { this.updatedAt = updatedAt; }
+    public LocalDateTime getUpdatedAt() { return updatedAt; }
+    public void setUpdatedAt(LocalDateTime updatedAt) { this.updatedAt = updatedAt; }
 }
 

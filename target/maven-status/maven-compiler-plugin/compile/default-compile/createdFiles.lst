@@ -1,5 +1,8 @@
+com/eci/inventoryservice/repository/InventoryMovementRepository.class
+com/eci/inventoryservice/repository/InventoryRepository.class
 com/eci/inventoryservice/InventoryServiceApplication.class
+com/eci/inventoryservice/dto/ReserveRequest.class
+com/eci/inventoryservice/model/InventoryMovement.class
 com/eci/inventoryservice/service/InventoryService.class
 com/eci/inventoryservice/controller/InventoryController.class
 com/eci/inventoryservice/model/Inventory.class
-com/eci/inventoryservice/repository/InventoryRepository.class
